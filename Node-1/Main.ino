@@ -1,45 +1,30 @@
+#include "actuators/RelayManager.h"
+#include "communication/ESPNowManager.h"
+#include "fsm/FertigationFSM.h"
+
+RelayManager relayManager;
+ESPNowManager espNowManager;
+FertigationFSM fertigationFSM;
+
 void setup() {
     Serial.begin(115200);
 
-    // [Relay]
-    // initRelay();
-    
-    // [Suhu Air]
-    // initSuhuAir();
+    relayManager.begin();
 
-    // [PH Meter]
-    // initPH();
+    espNowManager.begin();
 
-    // [RTC]
-    // initRTC();
-
-    // [Level Air]
-    // initLevelAir();
-
-    // [Suhu Ruang RH]
-    // initSHT31();
+    fertigationFSM.begin();
 }
 
 void loop() {
-    // [Relay]
-    // readRelay();
+    fertigationFSM.update();
 
-    // [Suhu Air]
-    // readSuhuAir();
+    if(espNowManager.hasNewData())
+    {
+        SoilData soil =
+            espNowManager.getSoilData();
 
-    // [PH Meter]
-    // readPH();
-
-    // [RTC]
-    // readRTC();
-    // countUpRTC();
-    // countdownRTC();
-    
-    // [Level Air]
-    // printLevelAir();
-
-    // [Suhu RH]
-    // climateControl();
-
-    delay(1000);
+        Serial.print("Moisture: ");
+        Serial.println(soil.moistureAvg);
+    }
 }
