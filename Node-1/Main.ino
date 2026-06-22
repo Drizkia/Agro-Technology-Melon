@@ -5,6 +5,7 @@
 #include "sensors/WaterLevel.h"
 #include "sensors/WaterTempSensor.h"
 #include "rtc/RTCManager.h"
+#include "recipe/RecipeManager.h"
 
 RelayManager relay;
 
@@ -25,6 +26,8 @@ WaterTempSensor waterTemp(
 );
 
 RTCManager rtcManager;
+
+RecipeManager recipeManager;
 
 // ISR
 void IRAM_ATTR flowWaterISR() {
@@ -115,4 +118,17 @@ void loop() {
         );
         Serial.println(" days");
     }
+
+    uint16_t age = rtcManager.getPlantAgeDays();
+
+    NutrientRecipe recipe = recipeManager.getRecipe(age);
+
+    Serial.print("Age : ");
+    Serial.println(age);
+
+    Serial.print("Target PPM : ");
+    Serial.println(recipe.targetPPM);
+
+    Serial.print("Target pH : ");
+    Serial.println(recipe.targetPH);
 }
