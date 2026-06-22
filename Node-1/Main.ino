@@ -3,6 +3,8 @@
 #include "actuators/RelayManager.h"
 #include "sensors/FlowMeter.h"
 #include "sensors/WaterLevel.h"
+#include "sensors/WaterTempSensor.h"
+#include "rtc/RTCManager.h"
 
 RelayManager relay;
 
@@ -10,6 +12,19 @@ RelayManager relay;
 FlowMeter flowWater(FLOW_WATER_PIN);
 FlowMeter flowA(FLOW_A_PIN);
 FlowMeter flowB(FLOW_B_PIN);
+
+// Water Level
+WaterLevel waterLevel(
+    ULTRASONIC_TRIG,
+    ULTRASONIC_ECHO
+);
+
+// Water Temperature
+WaterTempSensor waterTemp(
+    DS18B20_PIN
+);
+
+RTCManager rtcManager;
 
 // ISR
 void IRAM_ATTR flowWaterISR() {
@@ -24,10 +39,6 @@ void IRAM_ATTR flowBISR() {
     flowB.pulseCount++;
 }
 
-WaterLevel waterLevel(
-    ULTRASONIC_TRIG,
-    ULTRASONIC_ECHO
-);
 
 void setup() {
     Serial.begin(115200);
@@ -39,6 +50,15 @@ void setup() {
     flowB.begin(flowBISR);
 
     waterLevel.begin();
+
+    Wire.begin(
+        I2C_SDA_PIN,
+        I2C_SCL_PIN
+    );
+
+    waterTemp.begin();
+
+    rtcManager.begin();
 
     Serial.println("System Ready");
 }
@@ -68,11 +88,31 @@ void loop() {
             flowB.getVolumeLiter(),
             3
         );
+    }
 
-        Serial.print("Level : ");
+    Serial.print("Level : ");
+    Serial.print(
+        waterLevel.getLevelPercent()
+    );
+    Serial.println("%");
+
+    if(millis() - lastPrint >= 3000) {
+        lastPrint = millis();
+
+        Serial.println();
+
+        Serial.println("==== SYSTEM ====");
+
+        Serial.print("Water Temp : ");
         Serial.print(
-            waterLevel.getLevelPercent()
+            waterTemp.getTemperature()
         );
-        Serial.println("%");
+        Serial.println(" C");
+
+        Serial.print("Plant Age : ");
+        Serial.print(
+            rtcManager.getPlantAgeDays()
+        );
+        Serial.println(" days");
     }
 }
