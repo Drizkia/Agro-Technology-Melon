@@ -6,6 +6,8 @@
 #include "sensors/WaterTempSensor.h"
 #include "rtc/RTCManager.h"
 #include "recipe/RecipeManager.h"
+#include "sensors/PHSensor.h"
+#include "sensors/TDSSensor.h"
 
 RelayManager relay;
 
@@ -28,6 +30,11 @@ WaterTempSensor waterTemp(
 RTCManager rtcManager;
 
 RecipeManager recipeManager;
+
+// PH TDS
+PHSensor phSensor(PH_PIN);
+
+TDSSensor tdsSensor(TDS_PIN);
 
 // ISR
 void IRAM_ATTR flowWaterISR() {
@@ -62,6 +69,10 @@ void setup() {
     waterTemp.begin();
 
     rtcManager.begin();
+
+    phSensor.begin();
+
+    tdsSensor.begin();
 
     Serial.println("System Ready");
 }
@@ -131,4 +142,27 @@ void loop() {
 
     Serial.print("Target pH : ");
     Serial.println(recipe.targetPH);
+
+    if(millis() - lastPrint >= 2000) {
+        lastPrint = millis();
+
+        float waterTemp = waterTempSensor.getTemperature();
+
+        float ph = phSensor.readPH();
+
+        float ppm = tdsSensor.readPPM(waterTemp);
+
+        Serial.println();
+
+        Serial.println("===== SENSOR =====");
+
+        Serial.print("Temp : ");
+        Serial.println(waterTemp);
+
+        Serial.print("PH : ");
+        Serial.println(ph, 2);
+
+        Serial.print("PPM : ");
+        Serial.println(ppm, 0);
+    }
 }
