@@ -54,13 +54,14 @@ private:
 
     void handleCorrectPPM();
 
+    void handleCorrectionMix();
+
     void handleReady();
 
     void handleIrrigation();
 
     void handleError();
 
-private:
 private:
     FertigationState state;
 
@@ -88,6 +89,10 @@ private:
 
     NutrientRecipe currentRecipe;
     IrrigationConfig currentIrrigation;
+
+    uint8_t lastMixDay;
+    uint8_t lastMixMonth;
+    uint16_t lastMixYear;
 
     SensorData sensor;
 };

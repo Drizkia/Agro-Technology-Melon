@@ -48,6 +48,14 @@ constexpr uint32_t MIX_B_TIME =
 constexpr uint32_t FINAL_MIX_TIME =
     300000UL; // 5 menit
 
+constexpr unsigned long WATER_FILL_TIMEOUT = 
+    1800000UL; // 30 menit
+
+constexpr unsigned long NUTRIENT_TIMEOUT   = 
+    300000UL;  // 5 menit
+
+constexpr unsigned long CORRECTION_MIX_TIME = 
+    60000UL;
 
 // | DAILY MIX SCHEDULE
 

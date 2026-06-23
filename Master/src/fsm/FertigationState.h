@@ -22,6 +22,8 @@ enum class FertigationState {
 
     CORRECT_PPM,
 
+    CORRECTION_MIX,
+
     READY,
 
     IRRIGATION,

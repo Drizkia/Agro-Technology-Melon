@@ -22,6 +22,18 @@ uint16_t RTCManager::getPlantAgeDays() {
     return age.days();
 }
 
+uint8_t RTCManager::getDay() {
+    return rtc.now().day();
+}
+
+uint8_t RTCManager::getMonth() {
+    return rtc.now().month();
+}
+
+uint16_t RTCManager::getYear() {
+    return rtc.now().year();
+}
+
 uint8_t RTCManager::getHour() {
     DateTime now = rtc.now();
 

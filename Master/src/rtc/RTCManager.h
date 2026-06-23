@@ -6,22 +6,24 @@
 
 class RTCManager {
 public:
-    uint8_t getHour();
-
-    uint8_t getMinute();
-
     void begin();
 
     DateTime now();
 
     uint16_t getPlantAgeDays();
 
+    uint8_t getHour();
+    uint8_t getMinute();
+
+    uint8_t getDay();
+    uint8_t getMonth();
+    uint16_t getYear();
+
 private:
 
     RTC_PCF8563 rtc;
 
-    DateTime plantingDate =
-        DateTime(2026, 6, 1, 0, 0, 0);
+    DateTime plantingDate = DateTime(2026, 6, 1, 0, 0, 0);
 };
 
 #endif
