@@ -141,23 +141,25 @@ void loop() {
     Serial.println(recipe.targetPPM);
 
     Serial.print("Target pH : ");
-    Serial.println(recipe.targetPH);
+    Serial.print(recipe.targetMinPH);
+    Serial.print(" - ");
+    Serial.println(recipe.targetMaxPH);
 
     if(millis() - lastPrint >= 2000) {
         lastPrint = millis();
 
-        float waterTemp = waterTempSensor.getTemperature();
+        float temperature = waterTemp.getTemperature();
 
         float ph = phSensor.readPH();
 
-        float ppm = tdsSensor.readPPM(waterTemp);
+        float ppm = tdsSensor.readPPM(temperature);
 
         Serial.println();
 
         Serial.println("===== SENSOR =====");
 
         Serial.print("Temp : ");
-        Serial.println(waterTemp);
+        Serial.println(temperature);
 
         Serial.print("PH : ");
         Serial.println(ph, 2);

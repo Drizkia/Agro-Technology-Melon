@@ -6,8 +6,7 @@
 
 #include "SoilData.h"
 
-class ESPNowManager
-{
+class ESPNowManager {
 public:
     void begin();
 
@@ -19,7 +18,7 @@ public:
 
 private:
     static void onDataRecv(
-        const esp_now_recv_info_t *info,
+        const uint8_t *mac,
         const uint8_t *incomingData,
         int len
     );

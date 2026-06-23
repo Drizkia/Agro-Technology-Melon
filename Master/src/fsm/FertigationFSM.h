@@ -1,27 +1,82 @@
 #ifndef FERTIGATION_FSM_H
 #define FERTIGATION_FSM_H
 
+#include "FertigationState.h"
+
+#include "../sensors/SensorManager.h"
+#include "../actuators/RelayManager.h"
+#include "../rtc/RTCManager.h"
+
+#include "../recipe/RecipeManager.h"
+#include "../recipe/IrrigationRecipe.h"
+
 class FertigationFSM {
 public:
-
-    enum State
-    {
-        CHECK_VOLUME,
-        FILL_WATER,
-        DOSING_A,
-        DOSING_B,
-        CHECK_PH_TDS,
-        READY,
-        IRRIGATION
-    };
+    FertigationFSM(
+        SensorManager& sensors,
+        RelayManager& relays,
+        RTCManager& rtc,
+        RecipeManager& recipe,
+        IrrigationRecipe& irrigation
+    );
 
     void begin();
 
     void update();
 
-private:
+    FertigationState getState() const;
 
-    State currentState;
+private:
+    void changeState(
+        FertigationState newState
+    );
+
+    void handleIdle();
+
+    void handleWaitDailyMix();
+
+    void handlePrepareDailyMix();
+
+    void handleFillWater();
+
+    void handleAddNutrientA();
+
+    void handleMixA();
+
+    void handleAddNutrientB();
+
+    void handleMixB();
+
+    void handleValidate();
+
+    void handleCorrectPPM();
+
+    void handleReady();
+
+    void handleIrrigation();
+
+    void handleError();
+
+private:
+    FertigationState state;
+
+    unsigned long stateStartTime;
+
+    SensorManager& sensorManager;
+
+    RelayManager& relayManager;
+
+    RTCManager& rtcManager;
+
+    RecipeManager& recipeManager;
+
+    IrrigationRecipe& irrigationRecipe;
+
+    NutrientRecipe currentRecipe;
+
+    IrrigationConfig currentIrrigation;
+
+    SensorData sensor;
 };
 
 #endif

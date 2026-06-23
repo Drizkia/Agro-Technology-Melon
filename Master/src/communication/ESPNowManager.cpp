@@ -22,7 +22,7 @@ void ESPNowManager::begin() {
 }
 
 void ESPNowManager::onDataRecv(
-    const esp_now_recv_info_t *info,
+    const uint8_t *mac,
     const uint8_t *incomingData,
     int len
 ) {

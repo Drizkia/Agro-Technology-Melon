@@ -3,11 +3,10 @@
 void RTCManager::begin() {
     rtc.begin();
 
-    if(!rtc.initialized())
-    {
-        Serial.println(
-            "RTC NOT DETECTED"
-        );
+    if(!rtc.begin()) {
+        Serial.println("RTC Error");
+
+        while(true);
     }
 }
 
