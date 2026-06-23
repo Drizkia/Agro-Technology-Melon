@@ -26,30 +26,30 @@ Sistem ini terbagi menjadi dua bagian utama (Node) yang saling berkomunikasi men
 
 ## 📁 Struktur Direktori
 
-`	ext
-Agro-Technology-Melon/
-├── Master/                 # 🧠 Otak Sistem (Pusat Kontrol)
-│   ├── platformio.ini      # Konfigurasi PlatformIO
-│   └── src/
-│       ├── Main.ino        # Entry point Master
-│       ├── actuators/      # Manajemen Relay & Pompa
-│       ├── communication/  # Protokol ESP-NOW (Penerima)
-│       ├── config/         # Konfigurasi Pin & Sistem
-│       ├── fsm/            # Finite State Machine (Logika Fertigasi)
-│       ├── recipe/         # Resep Nutrisi & Irigasi
-│       ├── rtc/            # Real-Time Clock & Penjadwalan
-│       ├── sensors/        # Pembacaan Sensor Kualitas Air
-│       └── utils/          # Filter Data (Median, Moving Average)
-│
-└── Sleeve/                 # 🌱 Sensor Node (Lahan)
-    ├── platformio.ini      # Konfigurasi PlatformIO
-    └── src/
-        ├── main.ino        # Entry point Sleeve
-        ├── communication/  # Protokol ESP-NOW (Pengirim)
-        ├── config/         # Konfigurasi Pin
-        ├── sensor/         # Pembacaan Sensor Tanah
-        └── utils/          # Filter Data Sensor
-`
+```	ext
+Agro-Technology-Melon/  
+├── Master/                 # 🧠 Otak Sistem (Pusat Kontrol)  
+│   ├── platformio.ini      # Konfigurasi PlatformIO  
+│   └── src/  
+│       ├── Main.ino        # Entry point Master  
+│       ├── actuators/      # Manajemen Relay & Pompa  
+│       ├── communication/  # Protokol ESP-NOW (Penerima)  
+│       ├── config/         # Konfigurasi Pin & Sistem  
+│       ├── fsm/            # Finite State Machine (Logika Fertigasi)  
+│       ├── recipe/         # Resep Nutrisi & Irigasi  
+│       ├── rtc/            # Real-Time Clock & Penjadwalan  
+│       ├── sensors/        # Pembacaan Sensor Kualitas Air  
+│       └── utils/          # Filter Data (Median, Moving Average)  
+│  
+└── Sleeve/                 # 🌱 Sensor Node (Lahan)  
+    ├── platformio.ini      # Konfigurasi PlatformIO  
+    └── src/  
+        ├── main.ino        # Entry point Sleeve  
+        ├── communication/  # Protokol ESP-NOW (Pengirim)  
+        ├── config/         # Konfigurasi Pin  
+        ├── sensor/         # Pembacaan Sensor Tanah  
+        └── utils/          # Filter Data Sensor  
+```
 
 ---
 
