@@ -26,7 +26,7 @@ Sistem ini terbagi menjadi dua bagian utama (Node) yang saling berkomunikasi men
 
 ## 📁 Struktur Direktori
 
-`	ext
+```	ext
 Agro-Technology-Melon/  
 ├── Master/                 # 🧠 Otak Sistem (Pusat Kontrol)  
 │   ├── platformio.ini      # Konfigurasi PlatformIO  
@@ -49,7 +49,7 @@ Agro-Technology-Melon/
         ├── config/         # Konfigurasi Pin  
         ├── sensor/         # Pembacaan Sensor Tanah  
         └── utils/          # Filter Data Sensor  
-`
+```
 
 ---
 
