@@ -10,6 +10,8 @@
 #include "../recipe/RecipeManager.h"
 #include "../recipe/IrrigationRecipe.h"
 
+#include "../utils/RecoveryManager.h"
+
 class FertigationFSM {
 public:
     FertigationFSM(
@@ -20,7 +22,8 @@ public:
         IrrigationRecipe& irrigation,
         FlowMeter& water,
         FlowMeter& a,
-        FlowMeter& b
+        FlowMeter& b,
+        RecoveryManager& recovery
     );
 
     void begin();
@@ -60,7 +63,15 @@ private:
 
     void handleIrrigation();
 
+    void saveRecovery();
+
+    void restoreRecovery();
+
     void handleError();
+
+    void enterError();
+
+    void recoverFromError();
 
 private:
     FertigationState state;
@@ -82,6 +93,7 @@ private:
     RTCManager& rtcManager;
     RecipeManager& recipeManager;
     IrrigationRecipe& irrigationRecipe;
+    RecoveryManager& recovery;
 
     FlowMeter& waterFlow;
     FlowMeter& nutrientAFlow;
@@ -95,6 +107,12 @@ private:
     uint16_t lastMixYear;
 
     SensorData sensor;
+
+    FertigationState lastStateBeforeError = FertigationState::IDLE;
+
+    bool waitingRecovery = false;
+
+    bool recovering = false;
 };
 
 #endif

@@ -21,38 +21,38 @@
 
 #include "communication/ESPNowManager.h"
 
-#include "display/OLEDManager.h"
+#include "utils/RecoveryManager.h"
 
-//////////////////////////////////////////////////
-// OBJECTS
-//////////////////////////////////////////////////
-
-OLEDManager oled;
 RelayManager relay;
-RTCManager rtcManager;
-ESPNowManager espNow;
 
+// FLOW METERS
 FlowMeter flowWater(FLOW_WATER_PIN);
 FlowMeter flowA(FLOW_A_PIN);
 FlowMeter flowB(FLOW_B_PIN);
 
+// Water Level
 WaterLevel waterLevel(
     ULTRASONIC_TRIG,
     ULTRASONIC_ECHO
 );
 
+// Water Temperature
 WaterTempSensor waterTemp(
     DS18B20_PIN
 );
 
+RTCManager rtcManager;
+
+ESPNowManager espNow;
+
+RecoveryManager recovery;
+
+// PH TDS
 PHSensor phSensor(PH_PIN);
 
 TDSSensor tdsSensor(TDS_PIN);
 
-//////////////////////////////////////////////////
-// SENSOR MANAGER
-//////////////////////////////////////////////////
-
+// Sensor Manager
 SensorManager sensorManager(
     waterTemp,
     phSensor,
@@ -64,17 +64,11 @@ SensorManager sensorManager(
     flowB
 );
 
-//////////////////////////////////////////////////
-// RECIPE
-//////////////////////////////////////////////////
-
+// Recipe
 RecipeManager recipeManager;
 IrrigationRecipe irrigationRecipe;
 
-//////////////////////////////////////////////////
 // FSM
-//////////////////////////////////////////////////
-
 FertigationFSM fsm(
     sensorManager,
     relay,
@@ -83,187 +77,90 @@ FertigationFSM fsm(
     irrigationRecipe,
     flowWater,
     flowA,
-    flowB
+    flowB,
+    recovery
 );
 
-//////////////////////////////////////////////////
-// ISR FLOW METER
-//////////////////////////////////////////////////
-
-void IRAM_ATTR flowWaterISR()
-{
+// ISR
+void IRAM_ATTR flowWaterISR() {
     flowWater.pulseCount++;
 }
 
-void IRAM_ATTR flowAISR()
-{
+void IRAM_ATTR flowAISR() {
     flowA.pulseCount++;
 }
 
-void IRAM_ATTR flowBISR()
-{
+void IRAM_ATTR flowBISR() {
     flowB.pulseCount++;
 }
 
-//////////////////////////////////////////////////
-// SETUP
-//////////////////////////////////////////////////
-
-void setup()
-{
+void setup() {
     Serial.begin(115200);
-    delay(1000);
-
-    Serial.println();
-    Serial.println("===== SMART AGRO MASTER =====");
-
-    //////////////////////////////////////////////////
-    // RELAY
-    //////////////////////////////////////////////////
 
     relay.begin();
-
-    //////////////////////////////////////////////////
-    // FLOW METER
-    //////////////////////////////////////////////////
 
     flowWater.begin(flowWaterISR);
     flowA.begin(flowAISR);
     flowB.begin(flowBISR);
-
-    //////////////////////////////////////////////////
-    // I2C
-    //////////////////////////////////////////////////
 
     Wire.begin(
         I2C_SDA_PIN,
         I2C_SCL_PIN
     );
 
-    //////////////////////////////////////////////////
-    // SENSORS
-    //////////////////////////////////////////////////
-
     waterLevel.begin();
     waterTemp.begin();
+    rtcManager.begin();
+
+    recovery.begin();
 
     phSensor.begin();
     tdsSensor.begin();
 
-    //////////////////////////////////////////////////
-    // RTC
-    //////////////////////////////////////////////////
-
-    rtcManager.begin();
-
-    //////////////////////////////////////////////////
-    // ESP NOW
-    //////////////////////////////////////////////////
-
-    espNow.begin();
-
-    //////////////////////////////////////////////////
-    // OLED
-    //////////////////////////////////////////////////
-
-    oled.begin();
-    oled.showBoot();
-
-    delay(2000);
-
-    //////////////////////////////////////////////////
-    // FSM
-    //////////////////////////////////////////////////
+    if(!espNow.begin()) {
+        Serial.println("ESP-NOW Error");
+    }
 
     fsm.begin();
 
     Serial.println("System Ready");
+    delay(1000);
 }
 
-//////////////////////////////////////////////////
-// LOOP
-//////////////////////////////////////////////////
-
-void loop()
-{
-    //////////////////////////////////////////////////
-    // UPDATE SYSTEM
-    //////////////////////////////////////////////////
-
+void loop() {
     fsm.update();
-
-    SensorData data =
-        sensorManager.getData();
-
-    //////////////////////////////////////////////////
-    // OLED
-    //////////////////////////////////////////////////
-
-    static bool page = false;
-    static unsigned long lastPage = 0;
-
-    if (millis() - lastPage >= 5000)
-    {
-        lastPage = millis();
-
-        page = !page;
-    }
-
-    if (page)
-    {
-        oled.showSensor(
-            data.temperature,
-            data.ph,
-            data.ppm,
-            data.soilADC
-        );
-    }
-    else
-    {
-        oled.showFSM("MASTER");
-    }
-
-    //////////////////////////////////////////////////
-    // SERIAL MONITOR
-    //////////////////////////////////////////////////
-
     static unsigned long lastPrint = 0;
 
-    if (millis() - lastPrint >= 1000)
-    {
+    if(millis() - lastPrint >= 1000){
         lastPrint = millis();
 
-        Serial.println();
+        SensorData data =
+            sensorManager.getData();
 
-        Serial.println("========== SENSOR ==========");
-
-        Serial.print("Temp        : ");
+        Serial.print("Temp : ");
         Serial.println(data.temperature);
 
-        Serial.print("PH          : ");
+        Serial.print("PH : ");
         Serial.println(data.ph);
 
-        Serial.print("PPM         : ");
+        Serial.print("PPM : ");
         Serial.println(data.ppm);
 
-        Serial.print("Water Level : ");
+        Serial.print("Water : ");
         Serial.println(data.waterLevel);
 
-        Serial.print("Soil ADC    : ");
+        Serial.print("Soil : ");
         Serial.println(data.soilADC);
 
-        Serial.print("Flow Water  : ");
+        Serial.print("Flow Water : ");
         Serial.println(data.flowWater);
 
-        Serial.print("Flow A      : ");
+        Serial.print("Flow A : ");
         Serial.println(data.flowA);
 
-        Serial.print("Flow B      : ");
+        Serial.print("Flow B : ");
         Serial.println(data.flowB);
 
-        Serial.print("Volume      : ");
-        Serial.println(data.currentVolume);
-
-        Serial.println("============================");
+        Serial.println("----------------");
     }
 }

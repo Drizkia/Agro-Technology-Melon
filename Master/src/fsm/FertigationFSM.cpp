@@ -9,7 +9,8 @@ FertigationFSM::FertigationFSM(
     IrrigationRecipe& irrigation,
     FlowMeter& water,
     FlowMeter& a,
-    FlowMeter& b
+    FlowMeter& b,
+    RecoveryManager& recoveryManager
 )
 :
 sensorManager(sensors),
@@ -17,10 +18,15 @@ relayManager(relays),
 rtcManager(rtc),
 recipeManager(recipe),
 irrigationRecipe(irrigation),
+recovery(recoveryManager),
 waterFlow(water),
 nutrientAFlow(a),
-nutrientBFlow(b) 
-{
+nutrientBFlow(b)
+{    
+    lastStateBeforeError = FertigationState::IDLE;
+
+    waitingRecovery = false;
+
     state = FertigationState::IDLE;
     stateStartTime = 0;
 
@@ -43,6 +49,16 @@ nutrientBFlow(b)
 //     changeState(FertigationState::WAIT_DAILY_MIX);
 // }
 void FertigationFSM::begin() {
+    restoreRecovery();
+
+
+    if(recovering) {
+        Serial.println("[FSM] Resume From Power Failure");
+
+        return;
+    }
+
+    // changeState(FertigationState::WAIT_DAILY_MIX);
     changeState(FertigationState::PREPARE_DAILY_MIX);
 }
 
@@ -119,10 +135,10 @@ void FertigationFSM::changeState(FertigationState newState) {
 
     stateInitialized = false;
 
+    saveRecovery();
+
     Serial.print("[FSM] -> ");
-    Serial.println(
-        static_cast<int>(newState)
-    );
+    Serial.println(static_cast<int>(newState));
 }
 
 // GetState
@@ -154,7 +170,7 @@ void FertigationFSM::handleWaitDailyMix() {
         month == lastMixMonth &&
         year == lastMixYear;
 
-    if (hour == DAILY_MIX_HOUR && minute == DAILY_MIX_MINUTE && day != alreadyMixedToday) {
+    if (hour == DAILY_MIX_HOUR && minute == DAILY_MIX_MINUTE && !alreadyMixedToday) {
         lastMixDay = day;
         lastMixMonth = month;
         lastMixYear = year;
@@ -176,18 +192,27 @@ void FertigationFSM::handlePrepareDailyMix() {
     targetNutrientA = INITIAL_NUTRIENT_A;
     targetNutrientB = INITIAL_NUTRIENT_B;
 
+    waterFlow.reset();
+    nutrientAFlow.reset();
+    nutrientBFlow.reset();
+    recovery.clear();
     changeState(FertigationState::FILL_WATER);
+
 }
 
 void FertigationFSM::handleFillWater() {
     if (millis() - stateStartTime > WATER_FILL_TIMEOUT) {
-        changeState(FertigationState::ERROR);
+        enterError();
         return;
     }
     
     if(!stateInitialized) {
-        waterFlow.reset();
+        if(recovering) {
+            Serial.println("[FSM] Resume FILL_WATER");
+        }
 
+        recovering = false;
+        
         stateInitialized = true;
 
         Serial.println("[FSM] Filling Water...");
@@ -204,12 +229,16 @@ void FertigationFSM::handleFillWater() {
 
 void FertigationFSM::handleAddNutrientA() {
     if (millis() - stateStartTime > NUTRIENT_TIMEOUT) {
-        changeState(FertigationState::ERROR);
+        enterError();
         return;
     }
 
     if(!stateInitialized) {
-        nutrientAFlow.reset();
+        if(recovering) {
+            Serial.println("[FSM] Resume ADD_NUTRIENT_A");
+        }
+
+        recovering = false;
 
         relayManager.on(RELAY_NUTRIENT_A);
 
@@ -233,12 +262,15 @@ void FertigationFSM::handleMixA() {
 
 void FertigationFSM::handleAddNutrientB() {
     if (millis() - stateStartTime > NUTRIENT_TIMEOUT) {
-        changeState(FertigationState::ERROR);
+        enterError();
         return;
     }
 
     if(!stateInitialized) {
-        nutrientBFlow.reset();
+        if(recovering) {
+            Serial.println("[FSM] Resume ADD_NUTRIENT_B");
+        }
+        recovering = false;
 
         relayManager.on(RELAY_NUTRIENT_B);
 
@@ -283,14 +315,19 @@ void FertigationFSM::handleCorrectPPM() {
     }
 
     if(!stateInitialized) {
-        nutrientAFlow.reset();
-        nutrientBFlow.reset();
+        if(!recovering) {
+            nutrientAFlow.reset();
+            nutrientBFlow.reset();
+        }
+        recovering = false;
 
         relayManager.on(RELAY_NUTRIENT_A);
 
         relayManager.on(RELAY_NUTRIENT_B);
 
         stateInitialized = true;
+
+        Serial.println("[FSM] Correct PPM");
     }
 
     if(sensor.flowA >= CORRECTION_DOSE && sensor.flowB >= CORRECTION_DOSE) {
@@ -332,8 +369,92 @@ void FertigationFSM::handleError() {
     if(!stateInitialized) {
         relayManager.allOff();
 
-        Serial.println("[FSM] ERROR STATE");
+        Serial.println("[FSM] ERROR");
+
+        Serial.println("[FSM] Waiting Recovery...");
 
         stateInitialized = true;
     }
+
+    if(waitingRecovery == false) {
+        recoverFromError();
+    }
+}
+
+void FertigationFSM::enterError() {
+    lastStateBeforeError =
+        state;
+
+    waitingRecovery = true;
+
+    changeState(
+        FertigationState::ERROR
+    );
+}
+
+void FertigationFSM::recoverFromError() {
+    relayManager.allOff();
+
+    stateInitialized = false;
+
+    waitingRecovery = false;
+
+    recovering = true;
+    
+    Serial.print("[FSM] Recover to state : ");
+
+    Serial.println(static_cast<int>(lastStateBeforeError));
+
+    changeState(lastStateBeforeError);
+}
+
+void FertigationFSM::saveRecovery() {
+    RecoveryData data;
+
+    data.state = static_cast<uint8_t>(state);
+
+    data.waterPulse = waterFlow.pulseCount;
+
+    data.nutrientAPulse = nutrientAFlow.pulseCount;
+
+    data.nutrientBPulse = nutrientBFlow.pulseCount;
+
+    data.day = lastMixDay;
+
+    data.month = lastMixMonth;
+
+    data.year = lastMixYear;
+
+    data.batchRunning = true;
+
+    recovery.save(data);
+}
+
+void FertigationFSM::restoreRecovery() {
+    RecoveryData data = recovery.load();
+
+    if(!data.batchRunning)
+        return;
+
+    lastMixDay = data.day;
+
+    lastMixMonth = data.month;
+
+    lastMixYear = data.year;
+
+    waterFlow.pulseCount = data.waterPulse;
+
+    nutrientAFlow.pulseCount = data.nutrientAPulse;
+
+    nutrientBFlow.pulseCount = data.nutrientBPulse;
+
+    state = static_cast<FertigationState>(data.state);
+
+    recovering = true;
+
+    stateInitialized = false;
+
+    Serial.print("[FSM] Recovery State : ");
+
+    Serial.println(static_cast<int>(state));
 }
