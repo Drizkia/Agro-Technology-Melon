@@ -18,7 +18,8 @@ levelSensor(level),
 espNow(esp),
 flowWater(water),
 flowA(a),
-flowB(b)
+flowB(b),
+data{}
 {
 }
 
@@ -36,6 +37,10 @@ void SensorManager::update() {
     data.flowA = flowA.getVolumeLiter();
 
     data.flowB = flowB.getVolumeLiter();
+
+    // data.currentVolume = data.flowWater;
+    data.currentVolume = 0.0f;
+    // data.currentVolume = levelSensor.getVolumeLiter();
 
     if(espNow.hasNewData()) {
         SoilData soil = espNow.getData();

@@ -15,11 +15,21 @@ DateTime RTCManager::now() {
 }
 
 uint16_t RTCManager::getPlantAgeDays() {
-    DateTime currentDate =
-        rtc.now();
+    DateTime currentDate = rtc.now();
 
-    TimeSpan age =
-        currentDate - plantingDate;
+    TimeSpan age = currentDate - plantingDate;
 
     return age.days();
+}
+
+uint8_t RTCManager::getHour() {
+    DateTime now = rtc.now();
+
+    return now.hour();
+}
+
+uint8_t RTCManager::getMinute() {
+    DateTime now = rtc.now();
+
+    return now.minute();
 }

@@ -17,7 +17,10 @@ public:
         RelayManager& relays,
         RTCManager& rtc,
         RecipeManager& recipe,
-        IrrigationRecipe& irrigation
+        IrrigationRecipe& irrigation,
+        FlowMeter& water,
+        FlowMeter& a,
+        FlowMeter& b
     );
 
     void begin();
@@ -58,22 +61,32 @@ private:
     void handleError();
 
 private:
+private:
     FertigationState state;
 
     unsigned long stateStartTime;
 
+    bool stateInitialized;
+
+    float targetWaterVolume;
+    float targetNutrientA;
+    float targetNutrientB;
+
+    uint16_t targetPPM;
+    float targetMinPH;
+    float targetMaxPH;
+
     SensorManager& sensorManager;
-
     RelayManager& relayManager;
-
     RTCManager& rtcManager;
-
     RecipeManager& recipeManager;
-
     IrrigationRecipe& irrigationRecipe;
 
-    NutrientRecipe currentRecipe;
+    FlowMeter& waterFlow;
+    FlowMeter& nutrientAFlow;
+    FlowMeter& nutrientBFlow;
 
+    NutrientRecipe currentRecipe;
     IrrigationConfig currentIrrigation;
 
     SensorData sensor;

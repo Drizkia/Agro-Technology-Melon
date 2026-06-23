@@ -6,6 +6,9 @@
 
 class RTCManager {
 public:
+    uint8_t getHour();
+
+    uint8_t getMinute();
 
     void begin();
 

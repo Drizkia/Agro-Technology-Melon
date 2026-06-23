@@ -6,16 +6,33 @@ FertigationFSM::FertigationFSM(
     RelayManager& relays,
     RTCManager& rtc,
     RecipeManager& recipe,
-    IrrigationRecipe& irrigation
+    IrrigationRecipe& irrigation,
+    FlowMeter& water,
+    FlowMeter& a,
+    FlowMeter& b
 )
 :
 sensorManager(sensors),
 relayManager(relays),
 rtcManager(rtc),
 recipeManager(recipe),
-irrigationRecipe(irrigation) {
+irrigationRecipe(irrigation),
+waterFlow(water),
+nutrientAFlow(a),
+nutrientBFlow(b) 
+{
     state = FertigationState::IDLE;
     stateStartTime = 0;
+
+    stateInitialized = false;
+
+    targetWaterVolume = 0;
+    targetNutrientA = 0;
+    targetNutrientB = 0;
+
+    targetPPM = 0;
+    targetMinPH = 0;
+    targetMaxPH = 0;
 }
 
 // Begin
@@ -91,8 +108,9 @@ void FertigationFSM::update() {
 void FertigationFSM::changeState(FertigationState newState) {
     state = newState;
 
-    stateStartTime =
-        millis();
+    stateStartTime = millis();
+
+    stateInitialized = false;
 }
 
 // GetState
@@ -102,14 +120,117 @@ FertigationFSM::getState() const {
 }
 
 void FertigationFSM::handleIdle() {}
-void FertigationFSM::handleWaitDailyMix(){}
-void FertigationFSM::handlePrepareDailyMix(){}
 
-void FertigationFSM::handleFillWater(){}
-void FertigationFSM::handleAddNutrientA(){}
-void FertigationFSM::handleMixA(){}
-void FertigationFSM::handleAddNutrientB(){}
-void FertigationFSM::handleMixB(){}
+void FertigationFSM::handleWaitDailyMix() {
+    uint8_t hour = rtcManager.getHour();
+
+    uint8_t minute = rtcManager.getMinute();
+
+    if (hour == DAILY_MIX_HOUR && minute == DAILY_MIX_MINUTE) {
+        changeState(FertigationState::PREPARE_DAILY_MIX);
+    }
+}
+
+void FertigationFSM::handlePrepareDailyMix() {
+    uint16_t age = rtcManager.getPlantAgeDays();
+
+    currentRecipe = recipeManager.getRecipe(age);
+
+    currentIrrigation = irrigationRecipe.getRecipe(age);
+
+    targetPPM = currentRecipe.targetPPM;
+
+    targetMinPH = currentRecipe.targetMinPH;
+
+    targetMaxPH = currentRecipe.targetMaxPH;
+
+    targetWaterVolume = DAILY_TARGET_VOLUME;
+
+    targetNutrientA = INITIAL_NUTRIENT_A;
+
+    targetNutrientB = INITIAL_NUTRIENT_B;
+
+    changeState(
+        FertigationState::FILL_WATER
+    );
+}
+
+void FertigationFSM::handleFillWater() {
+    if(!stateInitialized) {
+        stateInitialized = true;
+
+        Serial.println(
+            "[FSM] Filling Water..."
+        );
+    }
+
+    if(sensor.flowWater < targetWaterVolume) {
+        relayManager.on(
+            RELAY_WATER
+        );
+    } else {
+        relayManager.off(
+            RELAY_WATER
+        );
+
+        changeState(
+            FertigationState::
+            ADD_NUTRIENT_A
+        );
+    }
+}
+
+void FertigationFSM::handleAddNutrientA() {
+    if(!stateInitialized) {
+        nutrientAFlow.reset();
+
+        relayManager.on(RELAY_NUTRIENT_A);
+
+        stateInitialized = true;
+
+        Serial.println("[FSM] Add Nutrient A");
+    }
+
+    if(sensor.flowA >= targetNutrientA) {
+        relayManager.off(RELAY_NUTRIENT_A);
+
+        changeState(
+            FertigationState::
+            MIX_A
+        );
+    }
+}
+
+void FertigationFSM::handleMixA() {
+    if(millis() - stateStartTime >= MIX_A_TIME) {
+        changeState(FertigationState::ADD_NUTRIENT_B);
+    }
+}
+
+void FertigationFSM::handleAddNutrientB() {
+    if(!stateInitialized) {
+        nutrientBFlow.reset();
+
+        relayManager.on(RELAY_NUTRIENT_B);
+
+        stateInitialized = true;
+
+        Serial.println("[FSM] Add Nutrient B");
+    }
+
+    if(sensor.flowB >= targetNutrientB) {
+        relayManager.off(RELAY_NUTRIENT_B);
+
+        changeState(FertigationState::MIX_B);
+    }
+}
+
+void FertigationFSM::handleMixB() {
+    if(millis() - stateStartTime >= MIX_B_TIME) {
+        changeState(FertigationState::VALIDATE);
+    }
+}
+
 void FertigationFSM::handleValidate(){}
 void FertigationFSM::handleCorrectPPM(){}
 void FertigationFSM::handleReady(){}

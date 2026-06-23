@@ -20,6 +20,8 @@ struct SensorData {
     float flowWater;
     float flowA;
     float flowB;
+
+    float currentVolume;
 };
 
 class SensorManager {
