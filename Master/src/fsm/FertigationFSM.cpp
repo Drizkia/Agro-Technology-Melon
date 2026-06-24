@@ -196,20 +196,50 @@ void FertigationFSM::handlePrepareDailyMix() {
     targetPPM = currentRecipe.targetPPM;
     targetMinPH = currentRecipe.targetMinPH;
     targetMaxPH = currentRecipe.targetMaxPH;
-    targetWaterVolume = DAILY_TARGET_VOLUME - sensor.tankVolume;
-    if(targetWaterVolume < 0) {
-        targetWaterVolume = 0;
+    float remainingVolume = sensor.tankVolume;
+    targetWaterVolume = DAILY_TARGET_VOLUME - remainingVolume;
+    if(targetWaterVolume < 0.0f) {
+        targetWaterVolume = 0.0f;
     }
     
-    targetNutrientA = INITIAL_NUTRIENT_A;
-    targetNutrientB = INITIAL_NUTRIENT_B;
+    float ratio = targetWaterVolume/ DAILY_TARGET_VOLUME;
+
+    if(ratio > 1.0f) {
+        ratio = 1.0f;
+    }
+
+    if(ratio < 0.0f) {
+        ratio = 0.0f;
+    }
+
+    targetNutrientA = INITIAL_NUTRIENT_A * ratio;
+    targetNutrientB = INITIAL_NUTRIENT_B * ratio;
+
+    Serial.println();
+    Serial.println("===== PARTIAL RECIPE =====");
+
+    Serial.print("Remaining Volume : ");
+    Serial.println(remainingVolume);
+
+    Serial.print("Water To Add : ");
+    Serial.println(targetWaterVolume);
+
+    Serial.print("Ratio : ");
+    Serial.println(ratio);
+
+    Serial.print("Nutrient A : ");
+    Serial.println(targetNutrientA);
+
+    Serial.print("Nutrient B : ");
+    Serial.println(targetNutrientB);
+
+    Serial.println("==========================");
 
     waterFlow.reset();
     nutrientAFlow.reset();
     nutrientBFlow.reset();
     recovery.clear();
     changeState(FertigationState::FILL_WATER);
-
 }
 
 void FertigationFSM::handleFillWater() {
@@ -267,7 +297,24 @@ void FertigationFSM::handleAddNutrientA() {
 }
 
 void FertigationFSM::handleMixA() {
+    if(!stateInitialized) {
+        if(sensor.tankVolume < MIN_REMAINING_VOLUME) {
+            Serial.println("[FSM] Mixer Dry Run");
+
+            enterError();
+
+            return;
+        }
+
+        relayManager.on(RELAY_MIXER);
+
+        stateInitialized = true;
+
+        Serial.println("[FSM] Mixing A");
+    }
+    
     if(millis() - stateStartTime >= MIX_A_TIME) {
+        relayManager.off(RELAY_MIXER);
         changeState(FertigationState::ADD_NUTRIENT_B);
     }
 }
@@ -299,7 +346,24 @@ void FertigationFSM::handleAddNutrientB() {
 }
 
 void FertigationFSM::handleMixB() {
+    if(!stateInitialized) {
+        if(sensor.tankVolume < MIN_REMAINING_VOLUME) {
+            Serial.println("[FSM] Mixer Dry Run");
+
+            enterError();
+
+            return;
+        }
+
+        relayManager.on(RELAY_MIXER);
+
+        stateInitialized = true;
+
+        Serial.println("[FSM] Mixing B");
+    }
+
     if(millis() - stateStartTime >= MIX_B_TIME) {
+        relayManager.off(RELAY_MIXER);
         changeState(FertigationState::VALIDATE);
     }
 }
@@ -352,7 +416,24 @@ void FertigationFSM::handleCorrectPPM() {
 }
 
 void FertigationFSM::handleCorrectionMix() {
+    if(!stateInitialized) {
+        if(sensor.tankVolume < MIN_REMAINING_VOLUME) {
+            Serial.println("[FSM] Mixer Dry Run");
+
+            enterError();
+
+            return;
+        }
+
+        relayManager.on(RELAY_MIXER);
+
+        stateInitialized = true;
+
+        Serial.println("[FSM] Correction Mix");
+    }
+
     if(millis() - stateStartTime >= CORRECTION_MIX_TIME) {
+        relayManager.off(RELAY_MIXER);
         changeState(FertigationState::VALIDATE);
     }
 }
@@ -365,16 +446,23 @@ void FertigationFSM::handleReady() {
 
 void FertigationFSM::handlePreIrrigationMix() {
     if(!stateInitialized) {
-        Serial.println("[FSM] Pre Irrigation Mix");
+        if(sensor.tankVolume < MIN_REMAINING_VOLUME) {
+            Serial.println("[FSM] Mixer Dry Run");
+
+            enterError();
+
+            return;
+        }
+
 
         // relay mixer nyala disini
-        // relayManager.on(RELAY_MIXER);
+        relayManager.on(RELAY_MIXER);
 
         stateInitialized = true;
     }
 
     if(millis() - stateStartTime >= PRE_IRRIGATION_MIX_TIME) {
-        // relayManager.off(RELAY_MIXER);
+        relayManager.off(RELAY_MIXER);
 
         changeState(FertigationState::PRE_IRRIGATION_VALIDATE);
     }

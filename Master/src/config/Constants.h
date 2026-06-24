@@ -69,8 +69,7 @@ constexpr uint8_t DAILY_MIX_MINUTE =
     0;
 
 // | WATER LEVEL
-
 constexpr float MIN_REMAINING_VOLUME =
-    5.0f; // Liter
+    2.0f; // Liter
 
 #endif

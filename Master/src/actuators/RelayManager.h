@@ -4,11 +4,11 @@
 #include <Arduino.h>
 
 enum RelayChannel {
-    RELAY_WATER = 1,
-    RELAY_NUTRIENT_A,
-    RELAY_NUTRIENT_B,
-    RELAY_IRRIGATION,
-    RELAY_5,
+    RELAY_WATER = 1, //1
+    RELAY_NUTRIENT_A, //2
+    RELAY_NUTRIENT_B, //3
+    RELAY_IRRIGATION, //4
+    RELAY_MIXER, //5
     RELAY_6,
     RELAY_7,
     RELAY_8
