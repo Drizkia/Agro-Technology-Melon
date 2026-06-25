@@ -6,10 +6,10 @@
 //! GREENHOUSE CONFIGURATION
 constexpr uint16_t TOTAL_PLANTS = 80;
 
-constexpr float MAX_CONSUMPTION_PER_PLANT = 2.0f; // Liter/hari
+constexpr float MAX_CONSUMPTION_PER_PLANT = 15.0f; // Liter/hari
 
 // constexpr float DAILY_TARGET_VOLUME = TOTAL_PLANTS * MAX_CONSUMPTION_PER_PLANT; // 160L
-constexpr float DAILY_TARGET_VOLUME = 2.0f; // 2Liter (Uji Coba)
+constexpr float DAILY_TARGET_VOLUME = 1.0f; // 2Liter (Uji Coba)
 
 //! BASE MIXING CONFIGURATION
 constexpr float BASE_TARGET_PPM = 850.0f;
@@ -56,7 +56,7 @@ constexpr uint8_t DAILY_MIX_HOUR = 5;
 constexpr uint8_t DAILY_MIX_MINUTE = 0;
 
 //! WATER LEVEL
-constexpr float MIN_REMAINING_VOLUME = 2.0f; // Liter
+constexpr float MIN_REMAINING_VOLUME = 0.0f; // Liter // Batas minimum air
 
 constexpr uint16_t PPM_TOLERANCE = 50; // PPM
 

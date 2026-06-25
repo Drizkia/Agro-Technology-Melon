@@ -24,8 +24,8 @@ private:
     uint8_t _trigPin;
     uint8_t _echoPin;
 
-    float tankHeightCM = 50.0f;
-    float tankCapacityLiter = 500.0f; 
+    float tankHeightCM = 45.0f; //50
+    float tankCapacityLiter = 15.0f; //500 
 };
 
 #endif

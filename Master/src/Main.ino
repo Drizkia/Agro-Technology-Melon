@@ -114,6 +114,8 @@ void setup() {
 
     recovery.begin();
 
+    // recovery.clear();
+
     phSensor.begin();
     tdsSensor.begin();
 
@@ -129,6 +131,7 @@ void setup() {
 
 void loop() {
     fsm.update();
+    
     static unsigned long lastPrint = 0;
 
     if(millis() - lastPrint >= 1000){
