@@ -53,9 +53,13 @@ private:
     void startWaterFilling();
     void stopWaterFilling();
 
+    void preMixNutrientA();
+    void stopPreMixNutrientA();
     void startNutrientA();
     void stopNutrientA();
 
+    void preMixNutrientB();
+    void stopPreMixNutrientB();
     void startNutrientB();
     void stopNutrientB();
 
@@ -103,11 +107,14 @@ private:
     void handleWaitDailyMix();
     void handlePrepareDailyMix();
     void handleFillWater();
+    void handlePreMixA();
     void handleAddNutrientA();
     void handleMixA();
+    void handlePreMixB();
     void handleAddNutrientB();
     void handleMixB();
     void handleValidate();
+    void handlePreMixCorrection();
     void handleCorrectPPM();
     void handleCorrectionMix();
     void handleReady();

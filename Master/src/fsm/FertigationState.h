@@ -10,15 +10,21 @@ enum class FertigationState {
 
     FILL_WATER,
 
+    PRE_MIX_A,
+
     ADD_NUTRIENT_A,
 
     MIX_A,
+
+    PRE_MIX_B,
 
     ADD_NUTRIENT_B,
 
     MIX_B,
 
     VALIDATE,
+
+    PRE_MIX_CORRECTION,
 
     CORRECT_PPM,
 

@@ -16,21 +16,21 @@ void RelayManager::begin() {
 
 uint8_t RelayManager::getPin(RelayChannel relay) {
     switch(relay) {
-        case RELAY_WATER:       
+        case RELAY_SOLENOID_WATER:       
             return RELAY_1_PIN;
-        case RELAY_NUTRIENT_A:  
+        case RELAY_SOLENOID_A:  
             return RELAY_2_PIN;
-        case RELAY_NUTRIENT_B:  
+        case RELAY_SOLENOID_B:  
             return RELAY_3_PIN;
-        case RELAY_IRRIGATION:  
+        case RELAY_SOLENOID_IRRIG:  
             return RELAY_4_PIN;
-        case RELAY_MIXER:       
+        case RELAY_PUMP_WATER:       
             return RELAY_5_PIN;
-        case RELAY_6:           
+        case RELAY_PUMP_A:           
             return RELAY_6_PIN;
-        case RELAY_7:           
+        case RELAY_PUMP_B:           
             return RELAY_7_PIN;
-        case RELAY_8:           
+        case RELAY_PUMP_MIX:           
             return RELAY_8_PIN;
     }
 
@@ -46,12 +46,12 @@ void RelayManager::off(RelayChannel relay) {
 }
 
 void RelayManager::allOff() {
-    off(RELAY_WATER);
-    off(RELAY_NUTRIENT_A);
-    off(RELAY_NUTRIENT_B);
-    off(RELAY_IRRIGATION);
-    off(RELAY_MIXER);
-    off(RELAY_6);
-    off(RELAY_7);
-    off(RELAY_8);
+    off(RELAY_SOLENOID_WATER);
+    off(RELAY_SOLENOID_A);
+    off(RELAY_SOLENOID_B);
+    off(RELAY_SOLENOID_IRRIG);
+    off(RELAY_PUMP_WATER);
+    off(RELAY_PUMP_A);
+    off(RELAY_PUMP_B);
+    off(RELAY_PUMP_MIX);
 }

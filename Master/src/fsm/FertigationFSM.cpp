@@ -50,7 +50,6 @@ nutrientBFlow(b)
 
 // Begin
 void FertigationFSM::begin() {
-    // FIX: cek RTC sebelum apapun — tidak lagi pakai while(true) di RTCManager
     if (!rtcManager.isOk()) {
         logError("[FSM] RTC gagal — masuk ERROR state");
         enterError(ErrorCode::RTC_FAILURE);
@@ -64,7 +63,6 @@ void FertigationFSM::begin() {
         return;
     }
 
-    // Pilih startup state berdasarkan SystemConfig
 #if SKIP_DAILY_SCHEDULE
     changeState(FertigationState::PREPARE_DAILY_MIX);
 #else
@@ -74,11 +72,8 @@ void FertigationFSM::begin() {
 
 // Update
 void FertigationFSM::update() {
-    // Refresh RTC snapshot sekali per loop (1 I2C read, semua getter konsisten)
     rtcManager.refresh();
-
     sensorManager.update();
-
     sensor = sensorManager.getData();
 
     switch (state) {
@@ -98,12 +93,20 @@ void FertigationFSM::update() {
             handleFillWater();
             break;
 
+        case FertigationState::PRE_MIX_A:
+            handlePreMixA();
+            break;
+
         case FertigationState::ADD_NUTRIENT_A:
             handleAddNutrientA();
             break;
 
         case FertigationState::MIX_A:
             handleMixA();
+            break;
+
+        case FertigationState::PRE_MIX_B:
+            handlePreMixB();
             break;
 
         case FertigationState::ADD_NUTRIENT_B:
@@ -116,6 +119,10 @@ void FertigationFSM::update() {
 
         case FertigationState::VALIDATE:
             handleValidate();
+            break;
+
+        case FertigationState::PRE_MIX_CORRECTION:
+            handlePreMixCorrection();
             break;
 
         case FertigationState::CORRECT_PPM:
@@ -147,7 +154,6 @@ void FertigationFSM::update() {
             break;
 
         default:
-            // State tidak dikenal — kembali ke IDLE sebagai safe fallback
             logError("[FSM] Unknown state — fallback to IDLE");
             changeState(FertigationState::IDLE);
             break;
@@ -157,13 +163,9 @@ void FertigationFSM::update() {
 // ChangeState
 void FertigationFSM::changeState(FertigationState newState) {
     state = newState;
-
     stateStartTime = millis();
-
     stateInitialized = false;
-
     saveRecovery();
-
     logStateTransition(newState);
 }
 
@@ -189,9 +191,7 @@ bool FertigationFSM::isPPMOverdose() {
 
 bool FertigationFSM::isTodayAlreadyMixed() {
     uint16_t day = rtcManager.getPlantAgeDays();
-
     uint8_t month = rtcManager.getMonth();
-
     uint16_t year = rtcManager.getYear();
 
     return
@@ -207,35 +207,57 @@ bool FertigationFSM::isStateTimeout(unsigned long timeout) {
 // ACTUATOR HELPERS
 
 void FertigationFSM::startMixer() {
-    relayManager.on(RELAY_MIXER);
+    relayManager.on(RELAY_PUMP_MIX);
 }
 
 void FertigationFSM::stopMixer() {
-    relayManager.off(RELAY_MIXER);
+    relayManager.off(RELAY_PUMP_MIX);
 }
 
 void FertigationFSM::startWaterFilling() {
-    relayManager.on(RELAY_WATER);
+    relayManager.on(RELAY_PUMP_WATER);
+    relayManager.on(RELAY_SOLENOID_WATER);
 }
 
 void FertigationFSM::stopWaterFilling() {
-    relayManager.off(RELAY_WATER);
+    relayManager.off(RELAY_PUMP_WATER);
+    relayManager.off(RELAY_SOLENOID_WATER);
+}
+
+void FertigationFSM::preMixNutrientA() {
+    relayManager.on(RELAY_PUMP_A);
+}
+
+void FertigationFSM::stopPreMixNutrientA() {
+    relayManager.off(RELAY_PUMP_A);
 }
 
 void FertigationFSM::startNutrientA() {
-    relayManager.on(RELAY_NUTRIENT_A);
+    relayManager.on(RELAY_PUMP_A);
+    relayManager.on(RELAY_SOLENOID_A);
 }
 
 void FertigationFSM::stopNutrientA() {
-    relayManager.off(RELAY_NUTRIENT_A);
+    relayManager.off(RELAY_PUMP_A);
+    relayManager.off(RELAY_SOLENOID_A);
+}
+
+void FertigationFSM::preMixNutrientB() {
+    relayManager.on(RELAY_PUMP_B);
+}
+
+void FertigationFSM::stopPreMixNutrientB() {
+    relayManager.off(RELAY_PUMP_B);
 }
 
 void FertigationFSM::startNutrientB() {
-    relayManager.on(RELAY_NUTRIENT_B);
+    relayManager.on(RELAY_PUMP_B);
+    relayManager.on(RELAY_SOLENOID_B);
 }
 
 void FertigationFSM::stopNutrientB() {
-    relayManager.off(RELAY_NUTRIENT_B);
+    relayManager.off(RELAY_PUMP_B);
+    relayManager.off(RELAY_SOLENOID_B);
 }
 
 // RECIPE
@@ -244,7 +266,6 @@ void FertigationFSM::prepareDailyRecipe() {
     uint16_t age = rtcManager.getPlantAgeDays();
 
     currentRecipe = recipeManager.getRecipe(age);
-
     currentIrrigation = irrigationRecipe.getRecipe(age);
 
     targetPPM = currentRecipe.targetPPM;
@@ -279,26 +300,20 @@ void FertigationFSM::prepareDailyRecipe() {
 bool FertigationFSM::beginMixing() {
     if (!isTankSafeForMixing()) {
         logError("[FSM] Mixer Dry Run");
-
         gotoError(ErrorCode::MIXER_DRY_RUN);
-
         return false;
     }
 
     startMixer();
-
     stateInitialized = true;
-
     return true;
 }
 
 bool FertigationFSM::updateMixing(uint32_t mixTime) {
     if (millis() - stateStartTime >= mixTime) {
         stopMixer();
-
         return true;
     }
-
     return false;
 }
 
@@ -313,11 +328,8 @@ void FertigationFSM::gotoValidate() {
 }
 
 void FertigationFSM::gotoCorrection() {
-    // Simpan state mana yang memulai koreksi agar gotoPostCorrection()
-    // bisa kembali ke validate yang benar
     correctionOrigin = state;
-
-    changeState(FertigationState::CORRECT_PPM);
+    changeState(FertigationState::PRE_MIX_CORRECTION);
 }
 
 void FertigationFSM::gotoError(ErrorCode error) {
@@ -325,21 +337,16 @@ void FertigationFSM::gotoError(ErrorCode error) {
 }
 
 void FertigationFSM::gotoPostCorrection() {
-    // FIX: kembali ke validate yang sesuai konteks asal koreksi
     if (correctionOrigin == FertigationState::PRE_IRRIGATION_VALIDATE) {
         changeState(FertigationState::PRE_IRRIGATION_VALIDATE);
     } else {
-        // Default: dari VALIDATE (siklus mixing harian)
         gotoValidate();
     }
 }
 
-// ============================================================
 // RECOVERY HELPERS
-// ============================================================
 
 void FertigationFSM::consumeRecovery() {
-    // FIX: encapsulate 'recovering = false' agar tidak tersebar di setiap handler
     if (recovering) {
         logRecovery("[FSM] Resuming from recovery");
         recovering = false;
@@ -350,22 +357,13 @@ void FertigationFSM::saveRecovery() {
     RecoveryData data;
 
     data.state = static_cast<uint16_t>(state);
-
     data.waterPulse = waterFlow.pulseCount;
-
     data.nutrientAPulse = nutrientAFlow.pulseCount;
-
     data.nutrientBPulse = nutrientBFlow.pulseCount;
-
     data.day = lastMixDay;
-
     data.month = lastMixMonth;
-
     data.year = lastMixYear;
-
-    // FIX: simpan lastStateBeforeError agar recovery dari ERROR bisa kembali ke state yang benar
     data.lastStateBeforeError = static_cast<uint16_t>(lastStateBeforeError);
-
     data.batchRunning = true;
 
     recovery.save(data);
@@ -377,8 +375,6 @@ void FertigationFSM::restoreRecovery() {
     if (!data.batchRunning)
         return;
 
-    // FIX: validasi range state sebelum cast ke enum
-    // Jika nilai tidak valid, jangan restore — mulai dari WAIT_DAILY_MIX
     const uint16_t maxValidState = static_cast<uint16_t>(FertigationState::ERROR);
 
     if (data.state > maxValidState) {
@@ -386,8 +382,6 @@ void FertigationFSM::restoreRecovery() {
         return;
     }
 
-    // FIX: jika state tersimpan adalah ERROR, gunakan lastStateBeforeError
-    // agar sistem tidak stuck di ERROR saat boot
     if (data.state == static_cast<uint16_t>(FertigationState::ERROR)) {
         logRecovery("[FSM] Stored state is ERROR — restore lastStateBeforeError");
 
@@ -410,14 +404,11 @@ void FertigationFSM::restoreRecovery() {
             : static_cast<uint16_t>(FertigationState::IDLE)
     );
 
-    // FIX: gunakan setPulseCount() dengan interrupt guard
-    // bukan direct assignment ke volatile tanpa guard
     waterFlow.setPulseCount(data.waterPulse);
     nutrientAFlow.setPulseCount(data.nutrientAPulse);
     nutrientBFlow.setPulseCount(data.nutrientBPulse);
 
     recovering = true;
-
     stateInitialized = false;
 
     logRecovery(
@@ -430,116 +421,36 @@ void FertigationFSM::clearRecovery() {
     recovery.clear();
 }
 
-// ============================================================
 // ERROR HELPERS
-// ============================================================
-
 void FertigationFSM::enterError(ErrorCode error) {
-    // FIX: matikan semua relay SEGERA di sini, tidak menunggu handleError()
-    // di loop berikutnya — relay mati dalam siklus yang sama saat error terdeteksi
     relayManager.allOff();
-
     setError(error);
-
     lastStateBeforeError = state;
-
     changeState(FertigationState::ERROR);
 }
 
 void FertigationFSM::setError(ErrorCode error) {
     currentError = error;
-
     waitingRecovery = true;
 }
 
 void FertigationFSM::clearError() {
     waitingRecovery = false;
-
     recovering = true;
 }
 
 void FertigationFSM::recoverFromError() {
     relayManager.allOff();
-
     stateInitialized = false;
-
     clearError();
-
     logRecovery(
         "[FSM] Recover to state : ",
         lastStateBeforeError
     );
-
     changeState(lastStateBeforeError);
 }
 
-// ============================================================
-// STATE DIAGRAM
-//
-// Startup (normal)
-//      |
-//      v
-// WAIT_DAILY_MIX
-//      | jam DAILY_MIX_HOUR:DAILY_MIX_MINUTE && !isTodayAlreadyMixed
-//      v
-// PREPARE_DAILY_MIX
-//      |
-//      v
-// FILL_WATER
-//      | flowWater >= targetWaterVolume
-//      v
-// ADD_NUTRIENT_A
-//      | flowA >= targetNutrientA
-//      v
-// MIX_A (MIX_A_TIME)
-//      |
-//      v
-// ADD_NUTRIENT_B
-//      | flowB >= targetNutrientB
-//      v
-// MIX_B (MIX_B_TIME)
-//      |
-//      v
-// VALIDATE
-//      | ppm OK
-//      v
-// READY
-//
-// VALIDATE
-//      | ppm low
-//      v
-// CORRECT_PPM
-//      | dosis tercapai
-//      v
-// CORRECTION_MIX (CORRECTION_MIX_TIME)
-//      |
-//      v-- gotoPostCorrection() --
-//      | correctionOrigin = VALIDATE → VALIDATE
-//      | correctionOrigin = PRE_IRRIGATION_VALIDATE → PRE_IRRIGATION_VALIDATE
-//
-// READY
-//      | soilADC >= dryThreshold
-//      v
-// PRE_IRRIGATION_MIX (PRE_IRRIGATION_MIX_TIME)
-//      |
-//      v
-// PRE_IRRIGATION_VALIDATE
-//      | ppm+pH OK
-//      v
-// IRRIGATION
-//      | soilADC <= wetThreshold
-//      v
-// READY
-//
-// Any timeout / overdose / mixer dry-run / pH out of range / correction failed
-//      |
-//      v
-// ERROR
-//      | auto-recover (recoverFromError)
-//      v
-// lastStateBeforeError
-// ============================================================
-
+// STATE HANDLERS
 void FertigationFSM::handleIdle() {
     relayManager.allOff();
 }
@@ -561,10 +472,7 @@ void FertigationFSM::handleWaitDailyMix() {
 
 void FertigationFSM::handlePrepareDailyMix() {
     prepareDailyRecipe();
-
-    // Reset correction counter untuk siklus mixing baru
     correctionCount = 0;
-
     waterFlow.reset();
     nutrientAFlow.reset();
     nutrientBFlow.reset();
@@ -579,11 +487,8 @@ void FertigationFSM::handleFillWater() {
     }
 
     if (!stateInitialized) {
-        // Selesaikan recovery flag sebelum melanjutkan operasi normal
         consumeRecovery();
-
         stateInitialized = true;
-
         logStateAction("[FSM] Filling Water...");
     }
 
@@ -591,7 +496,20 @@ void FertigationFSM::handleFillWater() {
         startWaterFilling();
     } else {
         stopWaterFilling();
+        changeState(FertigationState::PRE_MIX_A);
+    }
+}
 
+void FertigationFSM::handlePreMixA() {
+    if (!stateInitialized) {
+        consumeRecovery();
+        preMixNutrientA();
+        stateInitialized = true;
+        logStateAction("[FSM] Pre-Mix Nutrient A Tank");
+    }
+
+    if (isStateTimeout(PRE_MIX_TANK_TIME)) {
+        // Pompa A tetap menyala ke depannya, hanya saja saat ADD_NUTRIENT_A solenoid-nya terbuka
         changeState(FertigationState::ADD_NUTRIENT_A);
     }
 }
@@ -604,17 +522,13 @@ void FertigationFSM::handleAddNutrientA() {
 
     if (!stateInitialized) {
         consumeRecovery();
-
         startNutrientA();
-
         stateInitialized = true;
-
-        logStateAction("[FSM] Add Nutrient A");
+        logStateAction("[FSM] Dosing Nutrient A");
     }
 
     if (sensor.flowA >= targetNutrientA) {
         stopNutrientA();
-
         changeState(FertigationState::MIX_A);
     }
 }
@@ -624,11 +538,23 @@ void FertigationFSM::handleMixA() {
         if (!beginMixing()) {
             return;
         }
-
-        logStateAction("[FSM] Mixing A");
+        logStateAction("[FSM] Mixing Larutan A (Main Chamber)");
     }
 
     if (updateMixing(MIX_A_TIME)) {
+        changeState(FertigationState::PRE_MIX_B);
+    }
+}
+
+void FertigationFSM::handlePreMixB() {
+    if (!stateInitialized) {
+        consumeRecovery();
+        preMixNutrientB();
+        stateInitialized = true;
+        logStateAction("[FSM] Pre-Mix Nutrient B Tank");
+    }
+
+    if (isStateTimeout(PRE_MIX_TANK_TIME)) {
         changeState(FertigationState::ADD_NUTRIENT_B);
     }
 }
@@ -641,17 +567,13 @@ void FertigationFSM::handleAddNutrientB() {
 
     if (!stateInitialized) {
         consumeRecovery();
-
         startNutrientB();
-
         stateInitialized = true;
-
-        logStateAction("[FSM] Add Nutrient B");
+        logStateAction("[FSM] Dosing Nutrient B");
     }
 
     if (sensor.flowB >= targetNutrientB) {
         stopNutrientB();
-
         changeState(FertigationState::MIX_B);
     }
 }
@@ -661,12 +583,10 @@ void FertigationFSM::handleMixB() {
         if (!beginMixing()) {
             return;
         }
-
-        logStateAction("[FSM] Mixing B");
+        logStateAction("[FSM] Mixing Larutan B (Main Chamber)");
     }
 
     if (updateMixing(MIX_B_TIME)) {
-        // Reset correction counter — memasuki VALIDATE dari siklus mixing awal
         correctionCount = 0;
         gotoValidate();
     }
@@ -685,21 +605,35 @@ void FertigationFSM::handleValidate() {
     }
 }
 
+void FertigationFSM::handlePreMixCorrection() {
+    if (!stateInitialized) {
+        consumeRecovery();
+        
+        // Nyalakan Pompa A dan B (Solenoid tertutup)
+        preMixNutrientA();
+        preMixNutrientB();
+
+        stateInitialized = true;
+        logStateAction("[FSM] Pre-Mix Nutrisi A & B sebelum Koreksi PPM");
+    }
+
+    if (isStateTimeout(PRE_MIX_CORRECTION_TIME)) {
+        // Jangan panggil stopPreMixNutrient, biarkan menyala untuk dosing selanjutnya
+        changeState(FertigationState::CORRECT_PPM);
+    }
+}
+
 void FertigationFSM::handleCorrectPPM() {
-    // Cek apakah sudah dalam range — jika ya, langsung ke READY
     if (isPPMInRange()) {
         gotoReady();
         return;
     }
 
-    // Cek overdose — jika ya, masuk ERROR
     if (isPPMOverdose()) {
         gotoError(ErrorCode::OVER_PPM);
         return;
     }
 
-    // FIX: batasi jumlah iterasi koreksi untuk mencegah infinite loop
-    // Jika sensor TDS rusak (stuck rendah), correctionCount mencegah pompa jalan terus
     if (correctionCount >= MAX_CORRECTION_COUNT) {
         logError("[FSM] Max correction attempts reached");
         gotoError(ErrorCode::CORRECTION_FAILED);
@@ -709,7 +643,6 @@ void FertigationFSM::handleCorrectPPM() {
     if (!stateInitialized) {
         consumeRecovery();
 
-        // Reset flow meter nutrisi untuk mengukur dosis koreksi baru
         if (!recovering) {
             nutrientAFlow.reset();
             nutrientBFlow.reset();
@@ -719,16 +652,13 @@ void FertigationFSM::handleCorrectPPM() {
         startNutrientB();
 
         stateInitialized = true;
-
-        logStateAction("[FSM] Correct PPM");
+        logStateAction("[FSM] Injeksi Dosis Koreksi PPM");
     }
 
     if (sensor.flowA >= CORRECTION_DOSE && sensor.flowB >= CORRECTION_DOSE) {
         stopNutrientA();
         stopNutrientB();
-
         correctionCount++;
-
         changeState(FertigationState::CORRECTION_MIX);
     }
 }
@@ -738,12 +668,10 @@ void FertigationFSM::handleCorrectionMix() {
         if (!beginMixing()) {
             return;
         }
-
-        logStateAction("[FSM] Correction Mix");
+        logStateAction("[FSM] Mixing Dosis Koreksi (Main Chamber)");
     }
 
     if (updateMixing(CORRECTION_MIX_TIME)) {
-        // FIX: kembali ke validate yang sesuai konteks (VALIDATE atau PRE_IRRIGATION_VALIDATE)
         gotoPostCorrection();
     }
 }
@@ -776,47 +704,39 @@ void FertigationFSM::handlePreIrrigationValidate() {
     bool phOK  = sensor.ph >= targetMinPH && sensor.ph <= targetMaxPH;
 
     if (ppmOK && phOK) {
-        // FIX: reset correctionCount saat mulai irigasi baru
         correctionCount = 0;
         changeState(FertigationState::IRRIGATION);
     } else if (sensor.ppm < targetPPM) {
-        // PPM rendah → lakukan koreksi
-        // correctionOrigin akan di-set ke PRE_IRRIGATION_VALIDATE oleh gotoCorrection()
         gotoCorrection();
     } else {
-        // PPM normal tapi pH out of range — FIX: error code yang benar
-        // Sebelumnya: gotoError(OVER_PPM) — menyesatkan jika masalahnya pH
         gotoError(ErrorCode::PH_OUT_OF_RANGE);
     }
 }
 
 void FertigationFSM::handleIrrigation() {
     if (!stateInitialized) {
-        relayManager.on(RELAY_IRRIGATION);
-
+        // Nyalakan Pompa Mixing & Solenoid Irigasi
+        relayManager.on(RELAY_PUMP_MIX);
+        relayManager.on(RELAY_SOLENOID_IRRIG);
+        
         stateInitialized = true;
+        logStateAction("[FSM] Start Irrigation");
     }
 
     if (sensor.soilADC <= currentIrrigation.wetThreshold) {
-        relayManager.off(RELAY_IRRIGATION);
-
+        relayManager.off(RELAY_PUMP_MIX);
+        relayManager.off(RELAY_SOLENOID_IRRIG);
         gotoReady();
     }
 }
 
 void FertigationFSM::handleError() {
     if (!stateInitialized) {
-        // allOff sudah dipanggil di enterError() — panggil lagi sebagai double-safety
         relayManager.allOff();
-
         logError();
-
         stateInitialized = true;
     }
 
-    // waitingRecovery = true saat enterError dipanggil.
-    // Desain: auto-recover — tidak perlu intervensi operator secara manual.
-    // Dokumentasi: ini disengaja. Sistem akan recover ke state sebelum error.
     if (waitingRecovery == false) {
         recoverFromError();
     }
@@ -832,11 +752,14 @@ const char* FertigationFSM::stateToString(FertigationState s) {
         case FertigationState::WAIT_DAILY_MIX:          return "WAIT_DAILY_MIX";
         case FertigationState::PREPARE_DAILY_MIX:       return "PREPARE_DAILY_MIX";
         case FertigationState::FILL_WATER:              return "FILL_WATER";
+        case FertigationState::PRE_MIX_A:               return "PRE_MIX_A";
         case FertigationState::ADD_NUTRIENT_A:          return "ADD_NUTRIENT_A";
         case FertigationState::MIX_A:                   return "MIX_A";
+        case FertigationState::PRE_MIX_B:               return "PRE_MIX_B";
         case FertigationState::ADD_NUTRIENT_B:          return "ADD_NUTRIENT_B";
         case FertigationState::MIX_B:                   return "MIX_B";
         case FertigationState::VALIDATE:                return "VALIDATE";
+        case FertigationState::PRE_MIX_CORRECTION:      return "PRE_MIX_CORRECTION";
         case FertigationState::CORRECT_PPM:             return "CORRECT_PPM";
         case FertigationState::CORRECTION_MIX:          return "CORRECTION_MIX";
         case FertigationState::READY:                   return "READY";
@@ -849,7 +772,6 @@ const char* FertigationFSM::stateToString(FertigationState s) {
 }
 
 void FertigationFSM::logStateTransition(FertigationState newState) {
-    // FIX: cetak nama state bukan angka untuk readability di Serial Monitor
     Serial.print("[FSM] -> ");
     Serial.println(stateToString(newState));
 }
@@ -861,22 +783,16 @@ void FertigationFSM::logStateAction(const char* message) {
 void FertigationFSM::logRecipe(float remainingVolume, float ratio) {
     Serial.println();
     Serial.println("===== PARTIAL RECIPE =====");
-
     Serial.print("Remaining Volume : ");
     Serial.println(remainingVolume);
-
     Serial.print("Water To Add : ");
     Serial.println(targetWaterVolume);
-
     Serial.print("Ratio : ");
     Serial.println(ratio);
-
     Serial.print("Nutrient A : ");
     Serial.println(targetNutrientA);
-
     Serial.print("Nutrient B : ");
     Serial.println(targetNutrientB);
-
     Serial.println("==========================");
 }
 
@@ -900,3 +816,79 @@ void FertigationFSM::logRecovery(
     Serial.print(message);
     Serial.println(stateToString(recoveryState));
 }
+
+// ============================================================
+// STATE DIAGRAM
+//
+// Startup (normal)
+//      |
+//      v
+// WAIT_DAILY_MIX
+//      | jam DAILY_MIX_HOUR:DAILY_MIX_MINUTE && !isTodayAlreadyMixed
+//      v
+// PREPARE_DAILY_MIX
+//      |
+//      v
+// FILL_WATER
+//      | flowWater >= targetWaterVolume
+//      v
+// PRE_MIX_A
+//      |
+//      v
+// ADD_NUTRIENT_A
+//      | flowA >= targetNutrientA
+//      v
+// MIX_A (MIX_A_TIME)
+//      |
+//      v
+// PRE_MIX_B
+//      |
+//      v
+// ADD_NUTRIENT_B
+//      | flowB >= targetNutrientB
+//      v
+// MIX_B (MIX_B_TIME)
+//      |
+//      v
+// VALIDATE
+//      | ppm OK
+//      v
+// READY
+//
+// VALIDATE
+//      | ppm low
+//      v
+// CORRECT_PPM
+//      | dosis tercapai
+//      v
+// PRE_MIX_CORRECTION
+//      |
+//      v
+// CORRECTION_MIX (CORRECTION_MIX_TIME)
+//      |
+//      v-- gotoPostCorrection() --
+//      | correctionOrigin = VALIDATE → VALIDATE
+//      | correctionOrigin = PRE_IRRIGATION_VALIDATE → PRE_IRRIGATION_VALIDATE
+//
+// READY
+//      | soilADC >= dryThreshold
+//      v
+// PRE_IRRIGATION_MIX (PRE_IRRIGATION_MIX_TIME)
+//      |
+//      v
+// PRE_IRRIGATION_VALIDATE
+//      | ppm+pH OK
+//      v
+// IRRIGATION
+//      | soilADC <= wetThreshold
+//      v
+// READY
+//
+// Any timeout / overdose / mixer dry-run / pH out of range / correction failed
+//      |
+//      v
+// ERROR
+//      | auto-recover (recoverFromError)
+//      v
+// lastStateBeforeError
+// ============================================================

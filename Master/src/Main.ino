@@ -140,7 +140,14 @@ void loop() {
         Serial.println(data.temperature);
 
         Serial.print("PH : ");
-        Serial.println(data.ph);
+        Serial.print(data.ph);
+        if (data.ph < 5.9) {
+            Serial.println(" (Indikator: Butuh PH UP)");
+        } else if (data.ph > 6.5) {
+            Serial.println(" (Indikator: Butuh PH DOWN)");
+        } else {
+            Serial.println(" (Indikator: NORMAL)");
+        }
 
         Serial.print("PPM : ");
         Serial.println(data.ppm);

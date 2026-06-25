@@ -4,14 +4,14 @@
 #include <Arduino.h>
 
 enum RelayChannel {
-    RELAY_WATER = 1, //1
-    RELAY_NUTRIENT_A, //2
-    RELAY_NUTRIENT_B, //3
-    RELAY_IRRIGATION, //4
-    RELAY_MIXER, //5
-    RELAY_6,
-    RELAY_7,
-    RELAY_8
+    RELAY_SOLENOID_WATER = 1,
+    RELAY_SOLENOID_A,
+    RELAY_SOLENOID_B,
+    RELAY_SOLENOID_IRRIG,
+    RELAY_PUMP_WATER,
+    RELAY_PUMP_A,
+    RELAY_PUMP_B,
+    RELAY_PUMP_MIX
 };
 
 class RelayManager {

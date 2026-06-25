@@ -31,6 +31,12 @@ constexpr uint32_t CORRECTION_DELAY = 180000UL; // 3 menit
 
 
 //! MIXING TIME
+// <konfigurasi lapangan> (Waktu pengadukan bisa disesuaikan di lapangan)
+
+constexpr uint32_t PRE_MIX_TANK_TIME = 60000UL; // 1 menit
+
+constexpr uint32_t PRE_MIX_CORRECTION_TIME = 60000UL; // 1 menit
+
 constexpr uint32_t MIX_A_TIME = 300000UL; // 5 menit
 
 constexpr uint32_t MIX_B_TIME = 300000UL; // 5 menit
