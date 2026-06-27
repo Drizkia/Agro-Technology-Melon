@@ -20,6 +20,7 @@
 #include "fsm/FertigationFSM.h"
 
 #include "communication/ESPNowManager.h"
+#include "communication/MQTTManager.h"
 
 #include "utils/RecoveryManager.h"
 
@@ -46,6 +47,8 @@ RTCManager rtcManager;
 ESPNowManager espNow;
 
 RecoveryManager recovery;
+
+MQTTManager mqtt(relay);
 
 // PH TDS
 PHSensor phSensor(PH_PIN);
@@ -125,13 +128,18 @@ void setup() {
 
     fsm.begin();
 
+    mqtt.begin();
+
     Serial.println("System Ready");
     delay(5000);
 }
 
 void loop() {
     fsm.update();
-    
+
+    SensorData sensorData = sensorManager.getData();
+    mqtt.update(sensorData, fsm.getState());
+
     static unsigned long lastPrint = 0;
 
     if(millis() - lastPrint >= 1000){

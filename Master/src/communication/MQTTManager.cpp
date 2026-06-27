@@ -58,12 +58,12 @@ void MQTTManager::update(
 // publishSensors()
 // =========================================
 void MQTTManager::publishSensors(const SensorData& data) {
-    StaticJsonDocument<384> doc;
+    JsonDocument doc;
 
     doc["device_id"]   = MQTT_CLIENT_ID;
     doc["timestamp"]   = millis();
 
-    JsonObject sensors  = doc.createNestedObject("sensors");
+    JsonObject sensors  = doc["sensors"].to<JsonObject>();
     sensors["ph"]          = round(data.ph * 100.0f) / 100.0f;
     sensors["ppm"]         = (int)data.ppm;
     sensors["temperature"] = round(data.temperature * 10.0f) / 10.0f;
@@ -71,7 +71,7 @@ void MQTTManager::publishSensors(const SensorData& data) {
     sensors["tank_volume"] = round(data.tankVolume * 10.0f) / 10.0f;
     sensors["soil_adc"]    = data.soilADC;
 
-    JsonObject flow     = doc.createNestedObject("flow");
+    JsonObject flow     = doc["flow"].to<JsonObject>();
     flow["water"] = round(data.flowWater * 100.0f) / 100.0f;
     flow["a"]     = round(data.flowA * 100.0f) / 100.0f;
     flow["b"]     = round(data.flowB * 100.0f) / 100.0f;
@@ -89,7 +89,7 @@ void MQTTManager::publishSensors(const SensorData& data) {
 // publishFSMState()
 // =========================================
 void MQTTManager::publishFSMState(FertigationState state) {
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     doc["device_id"] = MQTT_CLIENT_ID;
     doc["state"]     = stateToString(state);
     doc["timestamp"] = millis();
@@ -108,11 +108,11 @@ void MQTTManager::publishFSMState(FertigationState state) {
 // =========================================
 void MQTTManager::publishRelayStatus() {
     // Relay aktif LOW, jadi digitalRead HIGH = OFF, LOW = ON
-    StaticJsonDocument<192> doc;
+    JsonDocument doc;
     doc["device_id"] = MQTT_CLIENT_ID;
     doc["timestamp"] = millis();
 
-    JsonObject relays = doc.createNestedObject("relays");
+    JsonObject relays = doc["relays"].to<JsonObject>();
     relays["water"]       = (digitalRead(21) == LOW);
     relays["nutrient_a"]  = (digitalRead(38) == LOW);
     relays["nutrient_b"]  = (digitalRead(39) == LOW);
@@ -136,7 +136,7 @@ String MQTTManager::getCommand() {
     return incomingCommand;
 }
 
-bool MQTTManager::isConnected() const {
+bool MQTTManager::isConnected() {
     return mqttClient.connected();
 }
 

@@ -55,7 +55,7 @@ public:
     // Ambil dan reset command terakhir
     String getCommand();
 
-    bool isConnected() const;
+    bool isConnected();
 
 private:
     void connectWiFi();
